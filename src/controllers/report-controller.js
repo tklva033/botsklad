@@ -46,6 +46,19 @@ export class ReportController {
     sendJson(res, 200, await this.importExportService.confirmProductsWorkbook(body));
   }
 
+  async importRevisionFiles(req, res) {
+    const body = await readJsonBody(req);
+    const files = Array.isArray(body.files) ? body.files : [];
+    sendJson(res, 200, await this.importExportService.importRevisionWorkbooks({
+      actorId: body.actorId || null,
+      files: files.map((file, index) => ({
+        name: file.name || `revision-${index + 1}.xlsx`,
+        sourceLabel: file.name || `revision-${index + 1}.xlsx`,
+        buffer: Buffer.from(String(file.base64Data || ""), "base64")
+      }))
+    }));
+  }
+
   async enqueueJob(req, res) {
     const body = await readJsonBody(req);
     sendJson(res, 202, await this.backgroundJobService.enqueue(body.jobType, body.payload || {}, body.runAt));
