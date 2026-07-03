@@ -105,6 +105,11 @@ export function createRouter({
         return;
       }
 
+      if (req.method === "POST" && url.pathname === "/reports/import-revisions") {
+        await reportController.importRevisionFiles(req, res);
+        return;
+      }
+
       if (req.method === "GET" && url.pathname.startsWith("/reports/files/")) {
         const fileName = decodeURIComponent(url.pathname.slice("/reports/files/".length));
         await mediaController.serveReportFile(req, res, fileName);
