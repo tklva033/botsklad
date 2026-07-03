@@ -58,7 +58,13 @@ export class CatalogRepository {
         LEFT JOIN inventory i ON i.product_id = p.id
         WHERE p.is_active = TRUE
         GROUP BY p.id
-        ORDER BY p.name
+        ORDER BY
+          CASE
+            WHEN p.name ~ '^[А-Яа-яЁё]' THEN 0
+            WHEN p.name ~ '^[0-9]' THEN 1
+            ELSE 2
+          END,
+          p.name
         LIMIT $1 OFFSET $2
       `,
       [limit, offset]
