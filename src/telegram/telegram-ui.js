@@ -21,13 +21,30 @@ export function backHomeKeyboard(backTarget = "menu:main") {
   ]);
 }
 
-export function productsKeyboard(products, action = "view", backTarget = "menu:main") {
-  return inlineKeyboard([
+export function productsKeyboard(products, action = "view", backTarget = "menu:main", pager = null) {
+  const rows = [
     ...products.map((product) => [
-      { text: `${product.name} (${product.sku})`, callback_data: `product:${action}:${product.id}` }
-    ]),
-    navRow(backTarget)
-  ]);
+      {
+        text: formatProductButtonLabel(product),
+        callback_data: `product:${action}:${product.id}`
+      }
+    ])
+  ];
+
+  if (pager && (pager.hasPrev || pager.hasNext)) {
+    const pageRow = [];
+    if (pager.hasPrev) {
+      pageRow.push({ text: "⬅️ Пред.", callback_data: pager.prevCallbackData });
+    }
+    pageRow.push({ text: `Стр. ${pager.page + 1}`, callback_data: "noop" });
+    if (pager.hasNext) {
+      pageRow.push({ text: "След. ➡️", callback_data: pager.nextCallbackData });
+    }
+    rows.push(pageRow);
+  }
+
+  rows.push(navRow(backTarget));
+  return inlineKeyboard(rows);
 }
 
 export function productCardKeyboard(productId) {
@@ -209,4 +226,25 @@ function statusLabel(status) {
 function trimNumber(value) {
   const number = Number(value || 0);
   return Number.isInteger(number) ? String(number) : number.toFixed(2);
+}
+
+function formatProductButtonLabel(product) {
+  const quantity = Number(product.totalQuantity);
+  const baseLabel = `${product.name} (${product.sku})`;
+
+  if (Number.isFinite(quantity)) {
+    const unit = product.unit || "";
+    return trimLabel(`${baseLabel} • ${trimNumber(quantity)} ${unit}`.trim(), 56);
+  }
+
+  return trimLabel(baseLabel, 56);
+}
+
+function trimLabel(value, maxLength = 56) {
+  const text = String(value || "").trim();
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, Math.max(0, maxLength - 1)).trimEnd()}…`;
 }

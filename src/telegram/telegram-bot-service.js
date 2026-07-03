@@ -273,6 +273,10 @@ export class TelegramBotService {
 
     await this.telegramGateway.answerCallbackQuery(callbackQuery.id);
 
+    if (data === "noop") {
+      return [];
+    }
+
     if (data === "auth:start") {
       return this.sendReplies(chatId, [{
         text: "Авторизация отключена. Используйте главное меню.",
@@ -307,11 +311,11 @@ export class TelegramBotService {
     }
 
     if (data === "menu:products") {
-      const products = await this.inventoryService.listProducts(15, 0);
-      return this.sendReplies(chatId, [{
-        text: products.length ? "Список товаров:" : "Товаров пока нет.",
-        extra: products.length ? productsKeyboard(products, "view") : backHomeKeyboard()
-      }]);
+      return this.sendProductListPage(chatId, 0);
+    }
+
+    if (data.startsWith("menu:products:page:")) {
+      return this.sendProductListPage(chatId, Number(data.split(":")[3] || 0));
     }
 
     if (data === "menu:search") {
@@ -342,14 +346,13 @@ export class TelegramBotService {
 
     if (data === "menu:audit") {
       this.ensurePermission(user, "audit", "У вас нет доступа к ревизии.");
-      const products = await this.inventoryService.listProducts(15, 0);
       this.sessionStore.set(telegramUserId, { mode: "idle", pendingAction: "audit" });
-      return this.sendReplies(chatId, [{
-        text: products.length
-          ? "Выберите товар для ревизии. В кнопках сразу показан остаток."
-          : "Товаров для ревизии пока нет.",
-        extra: products.length ? productsKeyboard(products, "audit") : backHomeKeyboard()
-      }]);
+      return this.sendAuditListPage(chatId, 0);
+    }
+
+    if (data.startsWith("menu:audit:page:")) {
+      this.ensurePermission(user, "audit", "У вас нет доступа к ревизии.");
+      return this.sendAuditListPage(chatId, Number(data.split(":")[3] || 0));
     }
 
     if (data === "menu:issue") {
@@ -948,6 +951,52 @@ export class TelegramBotService {
   async sendProductCard(chatId, productId) {
     const card = await this.inventoryService.getProductById(productId);
     return this.sendReplies(chatId, [{ text: formatProductCard(card), extra: productCardKeyboard(productId) }]);
+  }
+
+  async sendProductListPage(chatId, page = 0) {
+    const pageSize = 15;
+    const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 0;
+    const offset = safePage * pageSize;
+    const products = await this.inventoryService.listProducts(pageSize + 1, offset);
+    const visibleProducts = products.slice(0, pageSize);
+    const hasNext = products.length > pageSize;
+
+    return this.sendReplies(chatId, [{
+      text: visibleProducts.length ? "Список товаров:" : "Товаров пока нет.",
+      extra: visibleProducts.length
+        ? productsKeyboard(visibleProducts, "view", "menu:main", {
+          page: safePage,
+          hasPrev: safePage > 0,
+          hasNext,
+          prevCallbackData: `menu:products:page:${safePage - 1}`,
+          nextCallbackData: `menu:products:page:${safePage + 1}`
+        })
+        : backHomeKeyboard()
+    }]);
+  }
+
+  async sendAuditListPage(chatId, page = 0) {
+    const pageSize = 15;
+    const safePage = Number.isFinite(page) && page > 0 ? Math.floor(page) : 0;
+    const offset = safePage * pageSize;
+    const products = await this.inventoryService.listProducts(pageSize + 1, offset);
+    const visibleProducts = products.slice(0, pageSize);
+    const hasNext = products.length > pageSize;
+
+    return this.sendReplies(chatId, [{
+      text: visibleProducts.length
+        ? "Выберите товар для ревизии. В кнопках сразу показан остаток."
+        : "Товаров для ревизии пока нет.",
+      extra: visibleProducts.length
+        ? productsKeyboard(visibleProducts, "audit", "menu:main", {
+          page: safePage,
+          hasPrev: safePage > 0,
+          hasNext,
+          prevCallbackData: `menu:audit:page:${safePage - 1}`,
+          nextCallbackData: `menu:audit:page:${safePage + 1}`
+        })
+        : backHomeKeyboard()
+    }]);
   }
 
   async handleSearchInput(chatId, telegramUserId, query) {

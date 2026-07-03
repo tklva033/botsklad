@@ -47,16 +47,27 @@ export class CatalogRepository {
   async listProducts(limit = 20, offset = 0) {
     const result = await this.pool.query(
       `
-        SELECT id, name, sku
+        SELECT
+          p.id,
+          p.name,
+          p.sku,
+          p.unit,
+          COALESCE(SUM(i.quantity), 0) AS "totalQuantity"
         FROM products
-        WHERE is_active = TRUE
-        ORDER BY name
+        p
+        LEFT JOIN inventory i ON i.product_id = p.id
+        WHERE p.is_active = TRUE
+        GROUP BY p.id
+        ORDER BY p.name
         LIMIT $1 OFFSET $2
       `,
       [limit, offset]
     );
 
-    return result.rows;
+    return result.rows.map((row) => ({
+      ...row,
+      totalQuantity: Number(row.totalQuantity || 0)
+    }));
   }
 
   async listCells() {
