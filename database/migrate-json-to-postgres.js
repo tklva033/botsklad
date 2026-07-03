@@ -269,6 +269,311 @@ export function buildSeedPlan(db) {
   };
 }
 
+export async function applySeedPlan(db, plan, { reset = false } = {}) {
+  if (reset) {
+    await db.query("DELETE FROM user_action_logs");
+    await db.query("DELETE FROM notifications");
+    await db.query("DELETE FROM revisions");
+    await db.query("DELETE FROM issues");
+    await db.query("DELETE FROM receipts");
+    await db.query("DELETE FROM inventory_history");
+    await db.query("DELETE FROM stock_movements");
+    await db.query("DELETE FROM inventory");
+    await db.query("DELETE FROM products");
+    await db.query("DELETE FROM suppliers");
+    await db.query("DELETE FROM categories");
+    await db.query("DELETE FROM cells");
+    await db.query("DELETE FROM shelves");
+    await db.query("DELETE FROM racks");
+    await db.query("DELETE FROM warehouses");
+    await db.query("DELETE FROM users");
+  }
+
+  for (const role of plan.roles) {
+    await db.query(
+      `
+        INSERT INTO roles (id, code, name, permissions)
+        VALUES ($1, $2, $3, $4::jsonb)
+        ON CONFLICT (id) DO UPDATE
+        SET code = EXCLUDED.code,
+            name = EXCLUDED.name,
+            permissions = EXCLUDED.permissions
+      `,
+      [role.id, role.code, role.name, JSON.stringify(role.permissions)]
+    );
+  }
+
+  for (const warehouse of plan.warehouses) {
+    await db.query(
+      `
+        INSERT INTO warehouses (id, name, code)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (id) DO UPDATE
+        SET name = EXCLUDED.name,
+            code = EXCLUDED.code
+      `,
+      [warehouse.id, warehouse.name, warehouse.code]
+    );
+  }
+
+  for (const rack of plan.racks) {
+    await db.query(
+      `
+        INSERT INTO racks (id, warehouse_id, code, name)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (id) DO UPDATE
+        SET warehouse_id = EXCLUDED.warehouse_id,
+            code = EXCLUDED.code,
+            name = EXCLUDED.name
+      `,
+      [rack.id, rack.warehouseId, rack.code, rack.name]
+    );
+  }
+
+  for (const shelf of plan.shelves) {
+    await db.query(
+      `
+        INSERT INTO shelves (id, rack_id, code, name)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (id) DO UPDATE
+        SET rack_id = EXCLUDED.rack_id,
+            code = EXCLUDED.code,
+            name = EXCLUDED.name
+      `,
+      [shelf.id, shelf.rackId, shelf.code, shelf.name]
+    );
+  }
+
+  for (const cell of plan.cells) {
+    await db.query(
+      `
+        INSERT INTO cells (id, shelf_id, code, barcode, full_code)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (id) DO UPDATE
+        SET shelf_id = EXCLUDED.shelf_id,
+            code = EXCLUDED.code,
+            barcode = EXCLUDED.barcode,
+            full_code = EXCLUDED.full_code
+      `,
+      [cell.id, cell.shelfId, cell.code, cell.barcode, cell.fullCode]
+    );
+  }
+
+  for (const category of plan.categories) {
+    await db.query(
+      `
+        INSERT INTO categories (id, name)
+        VALUES ($1, $2)
+        ON CONFLICT (id) DO UPDATE
+        SET name = EXCLUDED.name
+      `,
+      [category.id, category.name]
+    );
+  }
+
+  for (const supplier of plan.suppliers) {
+    await db.query(
+      `
+        INSERT INTO suppliers (id, name)
+        VALUES ($1, $2)
+        ON CONFLICT (id) DO UPDATE
+        SET name = EXCLUDED.name
+      `,
+      [supplier.id, supplier.name]
+    );
+  }
+
+  for (const user of plan.users) {
+    await db.query(
+      `
+        INSERT INTO users (id, phone, full_name, role_id, telegram_id, telegram_username, is_active)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (id) DO UPDATE
+        SET phone = EXCLUDED.phone,
+            full_name = EXCLUDED.full_name,
+            role_id = EXCLUDED.role_id,
+            telegram_id = COALESCE(users.telegram_id, EXCLUDED.telegram_id),
+            telegram_username = COALESCE(users.telegram_username, EXCLUDED.telegram_username),
+            is_active = EXCLUDED.is_active
+      `,
+      [user.id, user.phone, user.fullName, user.roleId, user.telegramId, user.telegramUsername, user.isActive]
+    );
+  }
+
+  for (const product of plan.products) {
+    await db.query(
+      `
+        INSERT INTO products (
+          id, name, sku, qr_code, barcode, category_id, supplier_id, unit, min_stock, photo_url, is_active
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT (id) DO UPDATE
+        SET name = EXCLUDED.name,
+            sku = EXCLUDED.sku,
+            qr_code = EXCLUDED.qr_code,
+            barcode = EXCLUDED.barcode,
+            category_id = EXCLUDED.category_id,
+            supplier_id = EXCLUDED.supplier_id,
+            unit = EXCLUDED.unit,
+            min_stock = EXCLUDED.min_stock,
+            photo_url = EXCLUDED.photo_url,
+            is_active = EXCLUDED.is_active,
+            updated_at = NOW()
+      `,
+      [
+        product.id,
+        product.name,
+        product.sku,
+        product.qrCode,
+        product.barcode,
+        product.categoryId,
+        product.supplierId,
+        product.unit,
+        product.minStock,
+        product.photoUrl,
+        product.isActive
+      ]
+    );
+  }
+
+  for (const row of plan.inventory) {
+    await db.query(
+      `
+        INSERT INTO inventory (id, product_id, cell_id, quantity)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (product_id, cell_id) DO UPDATE
+        SET quantity = EXCLUDED.quantity,
+            updated_at = NOW()
+      `,
+      [row.id, row.productId, row.cellId, row.quantity]
+    );
+  }
+
+  for (const movement of plan.stockMovements) {
+    await db.query(
+      `
+        INSERT INTO stock_movements (
+          id, movement_type, product_id, quantity, from_cell_id, to_cell_id, performed_by, comment, metadata, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)
+        ON CONFLICT (id) DO NOTHING
+      `,
+      [
+        movement.id,
+        movement.type,
+        movement.productId,
+        movement.quantity,
+        movement.fromCellId,
+        movement.toCellId,
+        movement.performedBy,
+        movement.comment,
+        JSON.stringify(movement.metadata || {}),
+        movement.createdAt
+      ]
+    );
+  }
+
+  for (const row of plan.inventoryHistory) {
+    await db.query(
+      `
+        INSERT INTO inventory_history (
+          id, product_id, cell_id, movement_id, previous_quantity, new_quantity, change_quantity, changed_by, created_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (id) DO NOTHING
+      `,
+      [
+        row.id,
+        row.productId,
+        row.cellId,
+        row.movementId,
+        row.previousQuantity,
+        row.newQuantity,
+        row.changeQuantity,
+        row.changedBy,
+        row.createdAt
+      ]
+    );
+  }
+
+  for (const row of plan.receipts) {
+    await db.query(
+      `
+        INSERT INTO receipts (id, movement_id, supplier_id, warehouse_id, document_number, received_at, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        ON CONFLICT (id) DO NOTHING
+      `,
+      [row.id, row.movementId, row.supplierId, row.warehouseId, row.documentNumber, row.receivedAt, row.createdAt]
+    );
+  }
+
+  for (const row of plan.issues) {
+    await db.query(
+      `
+        INSERT INTO issues (id, movement_id, issued_to, request_number, issued_at, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        ON CONFLICT (id) DO NOTHING
+      `,
+      [row.id, row.movementId, row.issuedTo, row.requestNumber, row.issuedAt, row.createdAt]
+    );
+  }
+
+  for (const row of plan.revisions) {
+    await db.query(
+      `
+        INSERT INTO revisions (id, movement_id, cell_id, expected_qty, actual_qty, diff_qty, status, checked_by, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        ON CONFLICT (id) DO NOTHING
+      `,
+      [row.id, row.movementId, row.cellId, row.expectedQty, row.actualQty, row.diffQty, row.status, row.checkedBy, row.createdAt]
+    );
+  }
+
+  for (const row of plan.notifications) {
+    await db.query(
+      `
+        INSERT INTO notifications (id, type, severity, product_id, warehouse_id, cell_id, message, payload, is_read, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
+        ON CONFLICT (id) DO NOTHING
+      `,
+      [row.id, row.type, row.severity, row.productId, row.warehouseId, row.cellId, row.message, JSON.stringify(row.payload || {}), row.isRead, row.createdAt]
+    );
+  }
+
+  for (const row of plan.userActionLogs) {
+    await db.query(
+      `
+        INSERT INTO user_action_logs (id, user_id, action_type, entity_type, entity_id, old_value, new_value, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8)
+        ON CONFLICT (id) DO NOTHING
+      `,
+      [
+        row.id,
+        row.userId,
+        row.actionType,
+        row.entityType,
+        row.entityId,
+        row.oldValue ? JSON.stringify(row.oldValue) : null,
+        row.newValue ? JSON.stringify(row.newValue) : null,
+        row.createdAt
+      ]
+    );
+  }
+}
+
+export async function ensureLegacySeedData(pool, { filePath, minProducts = 1 } = {}) {
+  const result = await pool.query(`SELECT COUNT(*)::int AS count FROM products WHERE is_active = TRUE`);
+  const productCount = Number(result.rows[0]?.count || 0);
+  if (productCount >= minProducts) {
+    return { seeded: false, productCount };
+  }
+
+  const legacyDb = await readLegacyJson(filePath);
+  const plan = buildSeedPlan(legacyDb);
+  await withTransaction(pool, async (db) => {
+    await applySeedPlan(db, plan, { reset: false });
+  });
+
+  return { seeded: true, productCount: plan.products.length };
+}
+
 export async function migrateJsonToPostgres() {
   const jsonDb = await readLegacyJson();
   const plan = buildSeedPlan(jsonDb);
@@ -277,220 +582,7 @@ export async function migrateJsonToPostgres() {
 
   try {
     await withTransaction(pool, async (db) => {
-      await db.query("DELETE FROM user_action_logs");
-      await db.query("DELETE FROM notifications");
-      await db.query("DELETE FROM revisions");
-      await db.query("DELETE FROM issues");
-      await db.query("DELETE FROM receipts");
-      await db.query("DELETE FROM inventory_history");
-      await db.query("DELETE FROM stock_movements");
-      await db.query("DELETE FROM inventory");
-      await db.query("DELETE FROM products");
-      await db.query("DELETE FROM suppliers");
-      await db.query("DELETE FROM categories");
-      await db.query("DELETE FROM cells");
-      await db.query("DELETE FROM shelves");
-      await db.query("DELETE FROM racks");
-      await db.query("DELETE FROM warehouses");
-      await db.query("DELETE FROM users");
-
-      for (const role of plan.roles) {
-        await db.query(
-          `
-            INSERT INTO roles (id, code, name, permissions)
-            VALUES ($1, $2, $3, $4::jsonb)
-            ON CONFLICT (id) DO UPDATE
-            SET code = EXCLUDED.code,
-                name = EXCLUDED.name,
-                permissions = EXCLUDED.permissions
-          `,
-          [role.id, role.code, role.name, JSON.stringify(role.permissions)]
-        );
-      }
-
-      for (const warehouse of plan.warehouses) {
-        await db.query(
-          `INSERT INTO warehouses (id, name, code) VALUES ($1, $2, $3)`,
-          [warehouse.id, warehouse.name, warehouse.code]
-        );
-      }
-
-      for (const rack of plan.racks) {
-        await db.query(
-          `INSERT INTO racks (id, warehouse_id, code, name) VALUES ($1, $2, $3, $4)`,
-          [rack.id, rack.warehouseId, rack.code, rack.name]
-        );
-      }
-
-      for (const shelf of plan.shelves) {
-        await db.query(
-          `INSERT INTO shelves (id, rack_id, code, name) VALUES ($1, $2, $3, $4)`,
-          [shelf.id, shelf.rackId, shelf.code, shelf.name]
-        );
-      }
-
-      for (const cell of plan.cells) {
-        await db.query(
-          `INSERT INTO cells (id, shelf_id, code, barcode, full_code) VALUES ($1, $2, $3, $4, $5)`,
-          [cell.id, cell.shelfId, cell.code, cell.barcode, cell.fullCode]
-        );
-      }
-
-      for (const category of plan.categories) {
-        await db.query(
-          `INSERT INTO categories (id, name) VALUES ($1, $2)`,
-          [category.id, category.name]
-        );
-      }
-
-      for (const supplier of plan.suppliers) {
-        await db.query(
-          `INSERT INTO suppliers (id, name) VALUES ($1, $2)`,
-          [supplier.id, supplier.name]
-        );
-      }
-
-      for (const user of plan.users) {
-        await db.query(
-          `
-            INSERT INTO users (id, phone, full_name, role_id, telegram_id, telegram_username, is_active)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-          `,
-          [user.id, user.phone, user.fullName, user.roleId, user.telegramId, user.telegramUsername, user.isActive]
-        );
-      }
-
-      for (const product of plan.products) {
-        await db.query(
-          `
-            INSERT INTO products (
-              id, name, sku, qr_code, barcode, category_id, supplier_id, unit, min_stock, photo_url, is_active
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-          `,
-          [
-            product.id,
-            product.name,
-            product.sku,
-            product.qrCode,
-            product.barcode,
-            product.categoryId,
-            product.supplierId,
-            product.unit,
-            product.minStock,
-            product.photoUrl,
-            product.isActive
-          ]
-        );
-      }
-
-      for (const row of plan.inventory) {
-        await db.query(
-          `INSERT INTO inventory (id, product_id, cell_id, quantity) VALUES ($1, $2, $3, $4)`,
-          [row.id, row.productId, row.cellId, row.quantity]
-        );
-      }
-
-      for (const movement of plan.stockMovements) {
-        await db.query(
-          `
-            INSERT INTO stock_movements (
-              id, movement_type, product_id, quantity, from_cell_id, to_cell_id, performed_by, comment, metadata, created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10)
-          `,
-          [
-            movement.id,
-            movement.type,
-            movement.productId,
-            movement.quantity,
-            movement.fromCellId,
-            movement.toCellId,
-            movement.performedBy,
-            movement.comment,
-            JSON.stringify(movement.metadata || {}),
-            movement.createdAt
-          ]
-        );
-      }
-
-      for (const row of plan.inventoryHistory) {
-        await db.query(
-          `
-            INSERT INTO inventory_history (
-              id, product_id, cell_id, movement_id, previous_quantity, new_quantity, change_quantity, changed_by, created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-          `,
-          [
-            row.id,
-            row.productId,
-            row.cellId,
-            row.movementId,
-            row.previousQuantity,
-            row.newQuantity,
-            row.changeQuantity,
-            row.changedBy,
-            row.createdAt
-          ]
-        );
-      }
-
-      for (const row of plan.receipts) {
-        await db.query(
-          `
-            INSERT INTO receipts (id, movement_id, supplier_id, warehouse_id, document_number, received_at, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-          `,
-          [row.id, row.movementId, row.supplierId, row.warehouseId, row.documentNumber, row.receivedAt, row.createdAt]
-        );
-      }
-
-      for (const row of plan.issues) {
-        await db.query(
-          `
-            INSERT INTO issues (id, movement_id, issued_to, request_number, issued_at, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6)
-          `,
-          [row.id, row.movementId, row.issuedTo, row.requestNumber, row.issuedAt, row.createdAt]
-        );
-      }
-
-      for (const row of plan.revisions) {
-        await db.query(
-          `
-            INSERT INTO revisions (id, movement_id, cell_id, expected_qty, actual_qty, diff_qty, status, checked_by, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-          `,
-          [row.id, row.movementId, row.cellId, row.expectedQty, row.actualQty, row.diffQty, row.status, row.checkedBy, row.createdAt]
-        );
-      }
-
-      for (const row of plan.notifications) {
-        await db.query(
-          `
-            INSERT INTO notifications (id, type, severity, product_id, warehouse_id, cell_id, message, payload, is_read, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
-          `,
-          [row.id, row.type, row.severity, row.productId, row.warehouseId, row.cellId, row.message, JSON.stringify(row.payload || {}), row.isRead, row.createdAt]
-        );
-      }
-
-      for (const row of plan.userActionLogs) {
-        await db.query(
-          `
-            INSERT INTO user_action_logs (id, user_id, action_type, entity_type, entity_id, old_value, new_value, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8)
-          `,
-          [
-            row.id,
-            row.userId,
-            row.actionType,
-            row.entityType,
-            row.entityId,
-            row.oldValue ? JSON.stringify(row.oldValue) : null,
-            row.newValue ? JSON.stringify(row.newValue) : null,
-            row.createdAt
-          ]
-        );
-      }
+      await applySeedPlan(db, plan, { reset: true });
     });
 
     console.log("Legacy JSON data migrated to PostgreSQL successfully.");
