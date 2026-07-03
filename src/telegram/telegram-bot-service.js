@@ -73,7 +73,11 @@ export class TelegramBotService {
     }
 
     if (text === "/start") {
-      const user = await this.resolveTelegramUser(telegramUserId, telegramUsername);
+      const user = await this.resolveTelegramUser(telegramUserId, {
+        telegramUsername,
+        firstName: message.from?.first_name || "",
+        lastName: message.from?.last_name || ""
+      });
       if (!user) {
         throw new HttpError(503, "No active users available for Telegram bot access");
       }
@@ -101,7 +105,11 @@ export class TelegramBotService {
       }]);
     }
 
-    const user = await this.resolveTelegramUser(telegramUserId, telegramUsername);
+    const user = await this.resolveTelegramUser(telegramUserId, {
+      telegramUsername,
+      firstName: message.from?.first_name || "",
+      lastName: message.from?.last_name || ""
+    });
     const session = this.sessionStore.get(telegramUserId);
 
     if (!user) {
@@ -281,7 +289,11 @@ export class TelegramBotService {
     }
 
     const telegramUsername = callbackQuery.from?.username || "";
-    const user = await this.resolveTelegramUser(telegramUserId, telegramUsername);
+    const user = await this.resolveTelegramUser(telegramUserId, {
+      telegramUsername,
+      firstName: callbackQuery.from?.first_name || "",
+      lastName: callbackQuery.from?.last_name || ""
+    });
     if (!user) {
       return this.sendReplies(chatId, [{
         text: "Сначала авторизуйтесь.",
@@ -962,9 +974,13 @@ export class TelegramBotService {
       .map((item) => ({ id: item.locationId, fullCode: `${item.code} (${formatNumber(item.quantity)})` }));
   }
 
-  async resolveTelegramUser(telegramUserId, telegramUsername = "") {
+  async resolveTelegramUser(telegramUserId, profile = {}) {
     if (typeof this.authService.resolveTelegramUser === "function") {
-      return this.authService.resolveTelegramUser(telegramUserId, telegramUsername);
+      return this.authService.resolveTelegramUser(
+        telegramUserId,
+        profile.telegramUsername || "",
+        profile
+      );
     }
 
     return this.authService.findByTelegramId(telegramUserId);

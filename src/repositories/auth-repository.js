@@ -151,4 +151,50 @@ export class AuthRepository {
 
     return result.rows[0] || null;
   }
+
+  async countActiveUsers() {
+    const result = await this.pool.query(
+      `
+        SELECT COUNT(*)::int AS total
+        FROM users
+        WHERE is_active = TRUE
+      `
+    );
+
+    return Number(result.rows[0]?.total || 0);
+  }
+
+  async createTelegramUser({
+    id,
+    phone,
+    fullName,
+    roleId,
+    telegramId,
+    telegramUsername
+  }) {
+    const result = await this.pool.query(
+      `
+        INSERT INTO users (
+          id,
+          phone,
+          full_name,
+          role_id,
+          telegram_id,
+          telegram_username,
+          is_active
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, TRUE)
+        RETURNING
+          id,
+          phone,
+          full_name AS "fullName",
+          telegram_id AS "telegramId",
+          telegram_username AS "telegramUsername",
+          is_active AS "isActive"
+      `,
+      [id, phone, fullName, roleId, telegramId, telegramUsername || null]
+    );
+
+    return result.rows[0] || null;
+  }
 }

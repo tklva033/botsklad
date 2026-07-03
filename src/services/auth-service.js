@@ -1,4 +1,5 @@
 import { HttpError } from "../middlewares/http-error.js";
+import { config } from "../config.js";
 import { createId } from "../utils/ids.js";
 import { nowIso } from "../utils/dates.js";
 import { normalizeText } from "../utils/text.js";
@@ -67,6 +68,14 @@ export class AuthService {
     const byTelegramId = await this.findByTelegramId(telegramId);
     if (byTelegramId) {
       return byTelegramId;
+    }
+
+    const provisioned = await this.provisionTelegramUser({
+      telegramId,
+      telegramUsername
+    });
+    if (provisioned) {
+      return provisioned;
     }
 
     const fallbackUser = await this.authRepository.findPreferredBotUser();
@@ -143,4 +152,101 @@ export class AuthService {
 
     return map[role] || [];
   }
+
+  async provisionTelegramUser({
+    telegramId,
+    telegramUsername = "",
+    firstName = "",
+    lastName = ""
+  }) {
+    if (!telegramId) {
+      return null;
+    }
+
+    const role = await this.determineProvisionRole(telegramId);
+    const created = await this.authRepository.createTelegramUser({
+      id: createId("user"),
+      phone: `tg:${telegramId}`,
+      fullName: this.buildTelegramFullName({ telegramId, telegramUsername, firstName, lastName }),
+      roleId: ROLE_ID_BY_CODE[role] || ROLE_ID_BY_CODE.keeper,
+      telegramId,
+      telegramUsername
+    });
+
+    await this.auditLogRepository.log({
+      id: createId("ulog"),
+      userId: created.id,
+      actionType: "telegram_auto_provision",
+      entityType: "user",
+      entityId: created.id,
+      oldValue: null,
+      newValue: {
+        telegramId,
+        telegramUsername,
+        role
+      },
+      createdAt: nowIso()
+    });
+
+    return {
+      ...created,
+      role,
+      roleName: ROLE_NAME_BY_CODE[role] || role,
+      permissions: this.defaultPermissions(role)
+    };
+  }
+
+  async determineProvisionRole(telegramId) {
+    const normalizedId = String(telegramId);
+
+    if (config.telegramAdminIds.includes(normalizedId)) {
+      return "admin";
+    }
+    if (config.telegramSupervisorIds.includes(normalizedId)) {
+      return "supervisor";
+    }
+    if (config.telegramAuditorIds.includes(normalizedId)) {
+      return "auditor";
+    }
+    if (config.telegramKeeperIds.includes(normalizedId)) {
+      return "keeper";
+    }
+
+    const activeUsersCount = await this.authRepository.countActiveUsers();
+    if (activeUsersCount === 0) {
+      return "admin";
+    }
+
+    return "keeper";
+  }
+
+  buildTelegramFullName({ telegramId, telegramUsername = "", firstName = "", lastName = "" }) {
+    const fullName = [String(firstName || "").trim(), String(lastName || "").trim()]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+
+    if (fullName) {
+      return fullName;
+    }
+    if (telegramUsername) {
+      return `@${telegramUsername}`;
+    }
+
+    return `Telegram User ${telegramId}`;
+  }
 }
+
+const ROLE_ID_BY_CODE = {
+  admin: "role-admin",
+  supervisor: "role-supervisor",
+  keeper: "role-keeper",
+  auditor: "role-auditor"
+};
+
+const ROLE_NAME_BY_CODE = {
+  admin: "Администратор",
+  supervisor: "Руководитель",
+  keeper: "Кладовщик",
+  auditor: "Ревизор"
+};

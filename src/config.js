@@ -28,6 +28,10 @@ export const config = {
   publicBaseUrl: normalizedPublicBaseUrl,
   telegramWebhookPath: normalizedWebhookPath,
   telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || "",
+  telegramAdminIds: parseIdList(process.env.TELEGRAM_ADMIN_IDS || ""),
+  telegramSupervisorIds: parseIdList(process.env.TELEGRAM_SUPERVISOR_IDS || ""),
+  telegramAuditorIds: parseIdList(process.env.TELEGRAM_AUDITOR_IDS || ""),
+  telegramKeeperIds: parseIdList(process.env.TELEGRAM_KEEPER_IDS || ""),
   uploadsDir: path.resolve(rootDir, process.env.UPLOADS_DIR || "./uploads"),
   reportsDir: path.resolve(rootDir, process.env.REPORTS_DIR || "./reports"),
   schedulerEnabled: String(process.env.SCHEDULER_ENABLED || "true").toLowerCase() === "true",
@@ -64,4 +68,11 @@ function resolvePublicBaseUrl(env) {
   }
 
   return "";
+}
+
+function parseIdList(value) {
+  return String(value || "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
