@@ -8,6 +8,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --prod
 
 COPY database ./database
+COPY data ./data
 COPY docs ./docs
 COPY scripts ./scripts
 COPY src ./src
