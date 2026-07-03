@@ -1,0 +1,22 @@
+{
+  "name": "bot-sklad",
+  "version": "0.1.0",
+  "description": "Local warehouse server and Telegram bot backend",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "service:start": "node scripts/service-manager.js start",
+    "service:stop": "node scripts/service-manager.js stop",
+    "service:restart": "node scripts/service-manager.js restart",
+    "service:status": "node scripts/service-manager.js status",
+    "db:init": "node database/init-db.js",
+    "db:migrate-json": "node database/migrate-json-to-postgres.js",
+    "check": "node scripts/check.js"
+  },
+  "dependencies": {
+    "embedded-postgres": "18.4.0-beta.17",
+    "pdf-lib": "^1.17.1",
+    "pg": "^8.22.0",
+    "xlsx": "^0.18.5"
+  }
+}

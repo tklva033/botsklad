@@ -1,0 +1,175 @@
+{
+  "users": [
+    {
+      "id": "u-admin",
+      "phone": "+79990000001",
+      "fullName": "Admin User",
+      "role": "admin",
+      "telegramId": null,
+      "telegramUsername": null,
+      "isActive": true
+    },
+    {
+      "id": "u-keeper",
+      "phone": "+79990000002",
+      "fullName": "Store Keeper",
+      "role": "keeper",
+      "telegramId": null,
+      "telegramUsername": null,
+      "isActive": true
+    },
+    {
+      "id": "u-manager",
+      "phone": "+79990000003",
+      "fullName": "Sales Manager",
+      "role": "manager",
+      "telegramId": null,
+      "telegramUsername": null,
+      "isActive": true
+    }
+  ],
+  "products": [
+    {
+      "id": "p-bolt-m12",
+      "name": "Bolt M12x40",
+      "sku": "34567",
+      "category": "Fasteners",
+      "unit": "pcs",
+      "minStock": 50,
+      "supplier": "Main Supplier",
+      "photoUrl": "",
+      "qrCode": "QR-34567",
+      "isActive": true
+    },
+    {
+      "id": "p-nut-m12",
+      "name": "Nut M12",
+      "sku": "45678",
+      "category": "Fasteners",
+      "unit": "pcs",
+      "minStock": 40,
+      "supplier": "Main Supplier",
+      "photoUrl": "",
+      "qrCode": "QR-45678",
+      "isActive": true
+    },
+    {
+      "id": "p-bearing-6204",
+      "name": "Bearing 6204ZZ",
+      "sku": "6204ZZ",
+      "category": "Bearings",
+      "unit": "pcs",
+      "minStock": 10,
+      "supplier": "Bearing Trade",
+      "photoUrl": "",
+      "qrCode": "QR-6204ZZ",
+      "isActive": true
+    }
+  ],
+  "locations": [
+    {
+      "id": "loc-a03b",
+      "warehouse": "Main",
+      "rack": "A-03",
+      "shelf": "2",
+      "cell": "B",
+      "code": "A-03/2/B"
+    },
+    {
+      "id": "loc-c11a",
+      "warehouse": "Main",
+      "rack": "C-11",
+      "shelf": "1",
+      "cell": "A",
+      "code": "C-11/1/A"
+    },
+    {
+      "id": "loc-a01a",
+      "warehouse": "Main",
+      "rack": "A-01",
+      "shelf": "1",
+      "cell": "A",
+      "code": "A-01/1/A"
+    }
+  ],
+  "inventory": [
+    {
+      "id": "inv-1",
+      "productId": "p-bolt-m12",
+      "locationId": "loc-a03b",
+      "quantity": 154
+    },
+    {
+      "id": "inv-2",
+      "productId": "p-nut-m12",
+      "locationId": "loc-c11a",
+      "quantity": 88
+    },
+    {
+      "id": "inv-3",
+      "productId": "p-bearing-6204",
+      "locationId": "loc-a01a",
+      "quantity": 25
+    }
+  ],
+  "operations": [
+    {
+      "id": "op-seed-1",
+      "type": "receipt",
+      "productId": "p-bolt-m12",
+      "fromLocationId": null,
+      "toLocationId": "loc-a03b",
+      "quantity": 250,
+      "comment": "Initial receipt",
+      "performedBy": "u-admin",
+      "meta": {
+        "issuedTo": null
+      },
+      "createdAt": "2026-06-12T09:00:00.000Z"
+    },
+    {
+      "id": "op-seed-2",
+      "type": "issue",
+      "productId": "p-bolt-m12",
+      "fromLocationId": "loc-a03b",
+      "toLocationId": null,
+      "quantity": 40,
+      "comment": "Issued to assembly line",
+      "performedBy": "u-keeper",
+      "meta": {
+        "issuedTo": "Assembly"
+      },
+      "createdAt": "2026-06-15T10:30:00.000Z"
+    },
+    {
+      "id": "op-seed-3",
+      "type": "issue",
+      "productId": "p-bolt-m12",
+      "fromLocationId": "loc-a03b",
+      "toLocationId": null,
+      "quantity": 12,
+      "comment": "Issued to installation crew",
+      "performedBy": "u-keeper",
+      "meta": {
+        "issuedTo": "Installation"
+      },
+      "createdAt": "2026-06-18T11:20:00.000Z"
+    },
+    {
+      "id": "op-seed-4",
+      "type": "receipt",
+      "productId": "p-bearing-6204",
+      "fromLocationId": null,
+      "toLocationId": "loc-a01a",
+      "quantity": 25,
+      "comment": "Initial receipt",
+      "performedBy": "u-admin",
+      "meta": {
+        "issuedTo": null
+      },
+      "createdAt": "2026-06-22T08:15:00.000Z"
+    }
+  ],
+  "audits": [],
+  "notifications": []
+}

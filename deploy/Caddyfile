@@ -1,0 +1,9 @@
+{$APP_DOMAIN} {
+  encode gzip zstd
+
+  @telegramWebhook {
+    path {$TELEGRAM_WEBHOOK_PATH}
+  }
+
+  reverse_proxy app:3000
+}

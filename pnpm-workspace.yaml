@@ -1,0 +1,2 @@
+allowBuilds:
+  '@embedded-postgres/windows-x64': set this to true or false

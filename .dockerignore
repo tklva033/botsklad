@@ -1,0 +1,12 @@
+.env
+.git
+.agents
+.codex
+.pnpm-store
+node_modules
+runlogs
+uploads
+reports
+data/postgres
+server.out.log
+server.err.log

@@ -1,0 +1,14 @@
+.env
+.env.production
+node_modules/
+.pnpm-store/
+uploads/
+runlogs/
+deploy/.env
+gitrepo/
+gitrepo-template/
+.gitstore/
+.git-template-empty/
+server.out.log
+server.err.log
+data/postgres/
