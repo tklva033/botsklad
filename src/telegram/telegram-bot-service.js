@@ -307,8 +307,11 @@ export class TelegramBotService {
     }
 
     if (data === "menu:products") {
-      const products = await this.inventoryService.listProducts(20, 0);
-      return this.sendReplies(chatId, [{ text: "Список товаров:", extra: productsKeyboard(products, "view") }]);
+      const products = await this.inventoryService.listProducts(15, 0);
+      return this.sendReplies(chatId, [{
+        text: products.length ? "Список товаров:" : "Товаров пока нет.",
+        extra: products.length ? productsKeyboard(products, "view") : backHomeKeyboard()
+      }]);
     }
 
     if (data === "menu:search") {
@@ -339,10 +342,13 @@ export class TelegramBotService {
 
     if (data === "menu:audit") {
       this.ensurePermission(user, "audit", "У вас нет доступа к ревизии.");
-      this.sessionStore.set(telegramUserId, { mode: "await_search_query", pendingAction: "audit" });
+      const products = await this.inventoryService.listProducts(15, 0);
+      this.sessionStore.set(telegramUserId, { mode: "idle", pendingAction: "audit" });
       return this.sendReplies(chatId, [{
-        text: "Введите товар для ревизии, затем выберите позицию.",
-        extra: backHomeKeyboard()
+        text: products.length
+          ? "Выберите товар для ревизии. В кнопках сразу показан остаток."
+          : "Товаров для ревизии пока нет.",
+        extra: products.length ? productsKeyboard(products, "audit") : backHomeKeyboard()
       }]);
     }
 
