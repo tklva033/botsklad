@@ -1,6 +1,7 @@
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 import { initDatabase } from "../database/init-db.js";
+import { ensureLegacySeedData } from "../database/migrate-json-to-postgres.js";
 import { config } from "./config.js";
 import { AdminController } from "./controllers/admin-controller.js";
 import { AuthController } from "./controllers/auth-controller.js";
@@ -42,6 +43,12 @@ export async function buildApp() {
   }
 
   const pool = createDbPool();
+
+  const seedResult = await ensureLegacySeedData(pool);
+  if (seedResult.seeded) {
+    console.log(`Seeded ${seedResult.productCount} products from bundled legacy data.`);
+  }
+
   const authRepository = new AuthRepository(pool);
   const catalogRepository = new CatalogRepository(pool);
   const inventoryRepository = new InventoryRepository(pool);
