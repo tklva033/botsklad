@@ -60,10 +60,8 @@ export class CatalogRepository {
         GROUP BY p.id
         ORDER BY
           CASE
-            WHEN LEFT(p.name, 1) BETWEEN CHR(1040) AND CHR(1103) THEN 0
-            WHEN LEFT(p.name, 1) IN (CHR(1025), CHR(1105)) THEN 0
-            WHEN p.name ~ '^[0-9]' THEN 1
-            ELSE 2
+            WHEN p.name ~ '^[A-Za-z0-9]' THEN 1
+            ELSE 0
           END,
           p.name
         LIMIT $1 OFFSET $2
