@@ -119,4 +119,36 @@ export class AuthRepository {
 
     return result.rows;
   }
+
+  async findPreferredBotUser() {
+    const result = await this.pool.query(
+      `
+        SELECT
+          u.id,
+          u.phone,
+          u.full_name AS "fullName",
+          u.telegram_id AS "telegramId",
+          u.telegram_username AS "telegramUsername",
+          u.is_active AS "isActive",
+          r.code AS role,
+          r.name AS "roleName",
+          r.permissions AS permissions
+        FROM users u
+        JOIN roles r ON r.id = u.role_id
+        WHERE u.is_active = TRUE
+        ORDER BY
+          CASE r.code
+            WHEN 'admin' THEN 1
+            WHEN 'supervisor' THEN 2
+            WHEN 'keeper' THEN 3
+            WHEN 'auditor' THEN 4
+            ELSE 5
+          END,
+          u.full_name ASC
+        LIMIT 1
+      `
+    );
+
+    return result.rows[0] || null;
+  }
 }

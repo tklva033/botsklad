@@ -63,6 +63,26 @@ export class AuthService {
     };
   }
 
+  async resolveTelegramUser(telegramId, telegramUsername = "") {
+    const byTelegramId = await this.findByTelegramId(telegramId);
+    if (byTelegramId) {
+      return byTelegramId;
+    }
+
+    const fallbackUser = await this.authRepository.findPreferredBotUser();
+    if (!fallbackUser) {
+      return null;
+    }
+
+    return {
+      ...fallbackUser,
+      telegramId: telegramId || fallbackUser.telegramId || null,
+      telegramUsername: telegramUsername || fallbackUser.telegramUsername || "",
+      role: this.normalizeRole(fallbackUser.role),
+      permissions: this.normalizePermissions(fallbackUser.permissions, fallbackUser.role)
+    };
+  }
+
   async getUser(userId) {
     const user = await this.authRepository.findUserById(userId);
     if (!user) {

@@ -73,6 +73,19 @@ export class TelegramBotService {
     }
 
     if (text === "/start") {
+      const user = await this.resolveTelegramUser(telegramUserId, telegramUsername);
+      if (!user) {
+        throw new HttpError(503, "No active users available for Telegram bot access");
+      }
+
+      this.resetTransientState(telegramUserId);
+      return this.sendReplies(chatId, [{
+        text: `Bot Sklad готов к работе.\nАвторизация больше не требуется.\nПрофиль: ${user.fullName}\nРоль: ${ROLE_LABELS[user.role] || user.role}`,
+        extra: mainMenuKeyboard()
+      }]);
+    }
+
+    if (text === "/start") {
       return this.sendReplies(chatId, [{
         text: "Bot Sklad готов к работе. Нажмите кнопку авторизации и войдите по номеру телефона.",
         extra: authKeyboard()
@@ -88,7 +101,7 @@ export class TelegramBotService {
       }]);
     }
 
-    const user = await this.authService.findByTelegramId(telegramUserId);
+    const user = await this.resolveTelegramUser(telegramUserId, telegramUsername);
     const session = this.sessionStore.get(telegramUserId);
 
     if (!user) {
@@ -253,6 +266,13 @@ export class TelegramBotService {
     await this.telegramGateway.answerCallbackQuery(callbackQuery.id);
 
     if (data === "auth:start") {
+      return this.sendReplies(chatId, [{
+        text: "Авторизация отключена. Используйте главное меню.",
+        extra: mainMenuKeyboard()
+      }]);
+    }
+
+    if (data === "auth:start") {
       this.sessionStore.set(telegramUserId, { mode: "await_login_phone" });
       return this.sendReplies(chatId, [{
         text: "Введите номер телефона в формате +79990000001.",
@@ -260,7 +280,8 @@ export class TelegramBotService {
       }]);
     }
 
-    const user = await this.authService.findByTelegramId(telegramUserId);
+    const telegramUsername = callbackQuery.from?.username || "";
+    const user = await this.resolveTelegramUser(telegramUserId, telegramUsername);
     if (!user) {
       return this.sendReplies(chatId, [{
         text: "Сначала авторизуйтесь.",
@@ -939,6 +960,14 @@ export class TelegramBotService {
     return (product.locations || [])
       .filter((item) => Number(item.quantity || 0) > 0)
       .map((item) => ({ id: item.locationId, fullCode: `${item.code} (${formatNumber(item.quantity)})` }));
+  }
+
+  async resolveTelegramUser(telegramUserId, telegramUsername = "") {
+    if (typeof this.authService.resolveTelegramUser === "function") {
+      return this.authService.resolveTelegramUser(telegramUserId, telegramUsername);
+    }
+
+    return this.authService.findByTelegramId(telegramUserId);
   }
 
   resetTransientState(telegramUserId) {
