@@ -25,7 +25,7 @@ export function productsKeyboard(products, action = "view", backTarget = "menu:m
   const rows = [
     ...products.map((product) => [
       {
-        text: formatProductButtonLabel(product),
+        text: formatProductButtonLabel(product, action),
         callback_data: `product:${action}:${product.id}`
       }
     ])
@@ -228,9 +228,13 @@ function trimNumber(value) {
   return Number.isInteger(number) ? String(number) : number.toFixed(2);
 }
 
-function formatProductButtonLabel(product) {
+function formatProductButtonLabel(product, action = "view") {
   const quantity = Number(product.totalQuantity);
-  const baseLabel = `${product.name} (${product.sku})`;
+  const baseLabel = String(product.name || "").trim();
+
+  if (action === "view") {
+    return trimLabel(baseLabel, 56);
+  }
 
   if (Number.isFinite(quantity)) {
     const unit = product.unit || "";
