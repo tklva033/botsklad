@@ -253,3 +253,17 @@ UPDATE roles
 SET name = 'Ревизор',
     permissions = '["search","stock","audit","reports"]'::jsonb
 WHERE code = 'auditor';
+INSERT INTO users (id, phone, full_name, role_id, telegram_id, telegram_username, is_active)
+SELECT
+  'user-bot-admin',
+  '+10000000000',
+  'Bot Admin',
+  'role-admin',
+  NULL,
+  NULL,
+  TRUE
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM users
+  WHERE is_active = TRUE
+);
